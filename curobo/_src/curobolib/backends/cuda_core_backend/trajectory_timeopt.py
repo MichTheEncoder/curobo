@@ -105,8 +105,14 @@ def _spline_tables(device: torch.device) -> tuple[torch.Tensor, torch.Tensor, to
     return basis.polynomial, basis.tensor((nodes + 1) / 2), basis.tensor(weights / 2)
 
 
-def interpolate_spline(trajectory: SplineTrajectory, samples: int, dt: float) -> torch.Tensor:
-    """Allocate and evaluate one complete spline into [4,1,N,D]."""
+def interpolate_spline(
+    trajectory: SplineTrajectory,
+    samples: int,
+    dt: float,
+    start_time: float,
+    end_time: float,
+) -> torch.Tensor:
+    """Allocate and evaluate the spline between two physical times into [4,1,N,D]."""
     import numpy as np
 
     from curobo._src.trajectory.trajectory_spline import TimeOptTiming
@@ -133,5 +139,7 @@ def interpolate_spline(trajectory: SplineTrajectory, samples: int, dt: float) ->
         samples,
         timing.time.shape[1] if retimed else 0,
         np.float32(dt),
+        np.float32(start_time),
+        np.float32(end_time),
     )
     return output

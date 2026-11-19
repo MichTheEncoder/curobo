@@ -8,6 +8,12 @@ from curobo._src.util.logging import log_and_raise
 
 
 def launch_kernel(kernel_name, stream, config, kernel, *kernel_args):
+    expected = kernel.num_arguments
+    if expected != len(kernel_args):
+        log_and_raise(
+            f"Kernel argument count mismatch: {kernel_name} expects {expected} "
+            f"but {len(kernel_args)} were passed"
+        )
     launch(stream, config, kernel, *kernel_args)
 
     if runtime.debug:

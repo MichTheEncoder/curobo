@@ -108,6 +108,7 @@ class RobotBuilder:
         asset_path: str = "",
         tool_frames: Optional[List[str]] = None,
         device_cfg: Optional[DeviceCfg] = None,
+        lock_joints: Optional[Dict[str, float]] = None,
     ):
         """Initialize robot model builder from URDF file.
 
@@ -116,6 +117,11 @@ class RobotBuilder:
             asset_path: Path to mesh assets directory (for resolving relative mesh paths in URDF).
             base_link: Robot base link name. If None, auto-detected from URDF root.
             device_cfg: Device configuration for CUDA operations. Defaults to CUDA:0.
+            lock_joints: Joint names mapped to the fixed position they are held at. Locked
+                joints keep their links and collision spheres but are removed from the
+                planner's active degrees of freedom. Use this for gripper fingers whose
+                URDF ``<limit>`` block cannot represent an active joint (for example
+                ``velocity="0"``), or that are driven outside the arm controller.
         """
         self.device_cfg = device_cfg or DeviceCfg()
 
@@ -168,6 +174,9 @@ class RobotBuilder:
         self._self_collision_buffer: Dict[str, float] = {}
         self._cspace_config: Optional[Dict] = None
         self._link_metrics: Dict[str, SphereFitMetrics] = {}
+        self._lock_joints: Optional[Dict[str, float]] = (
+            dict(lock_joints) if lock_joints else None
+        )
 
     @classmethod
     def from_config(
@@ -230,6 +239,9 @@ class RobotBuilder:
 
         if "cspace" in kinematics_data:
             instance._cspace_config = kinematics_data["cspace"].copy()
+
+        if "lock_joints" in kinematics_data:
+            instance._lock_joints = dict(kinematics_data["lock_joints"])
 
         log_info(f"Loaded robot configuration from {config_path}")
 
@@ -609,6 +621,7 @@ class RobotBuilder:
             self_collision_buffer=self._self_collision_buffer,
             self_collision_ignore=self._self_collision_ignore,
             device_cfg=self.device_cfg,
+            lock_joints=self._lock_joints,
         )
 
         log_info("Built robot configuration")
@@ -990,6 +1003,7 @@ class RobotBuilder:
             self_collision_ignore=self._self_collision_ignore,
             device_cfg=self.device_cfg,
             load_meshes=False,
+            lock_joints=self._lock_joints,
         )
 
         data_dict = {"kinematics": vars(temp_gen_config)}

@@ -135,6 +135,19 @@ from curobo.logging import setup_logger
 from curobo.robot_builder import RobotBuilder
 
 
+def parse_lock_joints(entries):
+    """Parse ``NAME=VALUE`` CLI entries into a ``{joint_name: position}`` dict."""
+    if not entries:
+        return None
+    lock_joints = {}
+    for entry in entries:
+        name, sep, value = entry.partition("=")
+        if not sep:
+            raise ValueError(f"--lock-joint expects NAME=VALUE, got '{entry}'")
+        lock_joints[name.strip()] = float(value)
+    return lock_joints
+
+
 def build_new_robot(args):
     """Build a new robot model from URDF."""
     print(f"Building robot model from URDF: {args.urdf}")
@@ -145,6 +158,7 @@ def build_new_robot(args):
         urdf_path=args.urdf,
         asset_path=args.asset_path,
         tool_frames=args.tool_frames,
+        lock_joints=parse_lock_joints(args.lock_joint),
     )
 
     print(f"Found {len(builder.tool_frames)} links in robot")
@@ -245,6 +259,11 @@ def edit_existing_robot(args):
 
     # Load existing config
     builder = RobotBuilder.from_config(args.edit_config)
+
+    # Override locked joints carried by the loaded config when given on the CLI.
+    lock_joints = parse_lock_joints(args.lock_joint)
+    if lock_joints is not None:
+        builder._lock_joints = lock_joints
 
     print(f"Loaded robot with {builder.num_spheres} spheres")
 
@@ -475,6 +494,16 @@ def main():
         type=str,
         default=[],
         help="Tool frames (optional)",
+    )
+    parser.add_argument(
+        "--lock-joint",
+        action="append",
+        metavar="NAME=VALUE",
+        help=(
+            "Hold a joint at a fixed position instead of planning it, e.g. "
+            "gripper fingers whose URDF limit cannot be an active joint. "
+            "Locked links keep their collision spheres. Can be repeated."
+        ),
     )
 
     # Sphere fitting arguments
